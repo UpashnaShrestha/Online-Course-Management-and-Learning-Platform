@@ -11,6 +11,8 @@ import com.college.OnlineCourseManagement.LearningPlatform.enums.Role;
 import com.college.OnlineCourseManagement.LearningPlatform.exception.DuplicateResourceException;
 import com.college.OnlineCourseManagement.LearningPlatform.exception.UnauthorizedException;
 import com.college.OnlineCourseManagement.LearningPlatform.repository.UserRepository;
+import com.college.OnlineCourseManagement.LearningPlatform.repository.RefreshTokenRepository;
+import com.college.OnlineCourseManagement.LearningPlatform.entity.RefreshToken;
 import com.college.OnlineCourseManagement.LearningPlatform.security.JwtService;
 import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -33,6 +40,7 @@ public class AuthService {
     private final UserDetailsService userDetailsService;
     private final NotificationService notificationService;
     private final EmailService emailService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     public UserResponse register(RegisterRequest request) {
@@ -67,6 +75,7 @@ public class AuthService {
         return UserMapper.toResponse(savedUser);
     }
 
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -77,12 +86,11 @@ public class AuthService {
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(request.getUsername());
         String accessToken = jwtService.generateAccessToken(userDetails);
-        String refreshToken = request.isRememberMe()
-                ? jwtService.generateRememberMeRefreshToken(userDetails)
-                : jwtService.generateRefreshToken(userDetails);
+        String refreshToken = jwtService.generateRefreshToken(userDetails, request.isRememberMe());
 
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new UnauthorizedException("Invalid credentials"));
+        storeRefreshToken(refreshToken, userDetails.getUsername());
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
@@ -93,6 +101,7 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
     public LoginResponse refreshToken(RefreshTokenRequest request) {
         try {
             String refreshToken = request.getRefreshToken();
@@ -101,7 +110,15 @@ public class AuthService {
                 throw new UnauthorizedException("Invalid refresh token");
             }
 
+            String tokenHash = hash(refreshToken);
+            RefreshToken storedToken = refreshTokenRepository.findByTokenHash(tokenHash)
+                    .orElseThrow(() -> new UnauthorizedException("Refresh token has been revoked"));
             String username = jwtService.extractUsername(refreshToken);
+            if (!storedToken.getUsername().equals(username)
+                    || storedToken.getRevokedAt() != null
+                    || storedToken.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
+                throw new UnauthorizedException("Refresh token has been revoked or expired");
+            }
             UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
             if (!jwtService.isTokenValid(refreshToken, userDetails)) {
@@ -109,7 +126,12 @@ public class AuthService {
             }
 
             String newAccessToken = jwtService.generateAccessToken(userDetails);
-            String newRefreshToken = jwtService.generateRefreshToken(userDetails);
+            if (refreshTokenRepository.revokeIfActive(tokenHash) != 1) {
+                throw new UnauthorizedException("Refresh token has already been used");
+            }
+            String newRefreshToken = jwtService.generateRefreshToken(
+                    userDetails, jwtService.isRememberMeRefreshToken(refreshToken));
+            storeRefreshToken(newRefreshToken, username);
 
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new UnauthorizedException("Invalid refresh token"));
@@ -123,6 +145,34 @@ public class AuthService {
                     .build();
         } catch (JwtException | IllegalArgumentException ex) {
             throw new UnauthorizedException("Invalid refresh token");
+        }
+    }
+
+    @Transactional
+    public void logout(RefreshTokenRequest request) {
+        refreshTokenRepository.revokeIfActive(hash(request.getRefreshToken()));
+    }
+
+    private void storeRefreshToken(String token, String username) {
+        refreshTokenRepository.save(RefreshToken.builder()
+                .tokenHash(hash(token))
+                .username(username)
+                .expiresAt(LocalDateTime.ofInstant(
+                        jwtService.extractExpirationDate(token).toInstant(), ZoneOffset.UTC))
+                .build());
+    }
+
+    private String hash(String token) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(token.getBytes(StandardCharsets.UTF_8));
+            StringBuilder result = new StringBuilder(64);
+            for (byte value : digest) {
+                result.append(String.format("%02x", value));
+            }
+            return result.toString();
+        } catch (java.security.NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 is unavailable", ex);
         }
     }
 }

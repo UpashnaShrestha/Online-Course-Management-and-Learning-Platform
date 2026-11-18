@@ -50,7 +50,15 @@ export function AuthProvider({ children }) {
     return response.data?.data || response.data
   }, [])
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    const refreshToken = readSession()?.refreshToken
+    if (refreshToken) {
+      try {
+        await api.post('/api/auth/logout', { refreshToken })
+      } catch {
+        // Clear the local session even if the server is unreachable.
+      }
+    }
     setSession(null)
     clearSession()
   }, [])

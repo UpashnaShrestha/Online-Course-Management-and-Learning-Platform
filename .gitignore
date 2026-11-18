@@ -21,6 +21,15 @@ frontend/.env
 frontend/.env.*
 !frontend/.env.example
 
+### Local credentials and private keys ###
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+credentials/
+secrets/
+
 ### STS ###
 .apt_generated
 .classpath
@@ -48,6 +57,20 @@ build/
 
 ### VS Code ###
 .vscode/
+*.code-workspace
+
+### Logs and generated runtime files ###
+*.log
+logs/
+coverage/
+.pytest_cache/
+.cache/
+hs_err_pid*
+replay_pid*
+
+### OS metadata ###
+.DS_Store
+Thumbs.db
 
 ### Uploaded files (user-supplied, never commit) ###
 uploads/
