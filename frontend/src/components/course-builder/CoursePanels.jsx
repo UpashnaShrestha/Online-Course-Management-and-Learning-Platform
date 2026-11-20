@@ -254,6 +254,10 @@ export function AssignmentsPanel({
           Allowed file types (comma separated)
           <input value={(form.allowedFileTypes || []).join(', ')} onChange={(event) => setForm({ ...form, allowedFileTypes: event.target.value.split(',').map((item) => item.trim().toUpperCase()).filter(Boolean) })} className="mt-1 w-full rounded-lg border px-3 py-2" />
         </label>
+        <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+          <input type="checkbox" checked={form.allowLateSubmissions !== false} onChange={(event) => setForm({ ...form, allowLateSubmissions: event.target.checked })} />
+          Allow late submissions after the deadline
+        </label>
         <button className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white">
           {editingId ? 'Update assignment' : 'Add assignment'}
         </button>
@@ -284,6 +288,9 @@ export function AssignmentsPanel({
                   {assignment.dueDate
                     ? new Date(assignment.dueDate).toLocaleString()
                     : 'No due date'}
+                </p>
+                <p className="text-xs text-slate-500">
+                  Late submissions: {assignment.allowLateSubmissions === false ? 'Disabled' : 'Allowed'}
                 </p>
               </div>
               <div className="flex shrink-0 gap-2 text-xs">

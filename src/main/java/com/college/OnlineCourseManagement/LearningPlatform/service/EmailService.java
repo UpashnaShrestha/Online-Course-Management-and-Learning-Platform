@@ -39,9 +39,6 @@ public class EmailService {
     @Value("${app.frontend-base-url:http://localhost:5173}")
     private String frontendBaseUrl;
 
-    @Value("${app.mail.dev-log-otp:true}")
-    private boolean devLogOtp;
-
     /**
      * Which .env file supplied the configuration, for the startup banner. Set by
      * DotEnvPropertySourcePostProcessor; "(none)" when only OS variables were used.
@@ -96,11 +93,6 @@ public class EmailService {
                     to,
                     fromAddress == null || fromAddress.isBlank() ? "(BLANK)" : fromAddress,
                     dotEnvLocation);
-            // Without a mail server there is no way to deliver the code, so surface it in
-            // the logs rather than silently stranding the user.
-            if (devLogOtp) {
-                log.warn("=== DEV ONLY: reset OTP for {} is {} (valid {} min) ===", to, otp, validMinutes);
-            }
             return;
         }
 

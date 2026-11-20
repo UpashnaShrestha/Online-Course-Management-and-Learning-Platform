@@ -114,17 +114,18 @@ export default function CourseDetailPage() {
       if (Number(course?.price || 0) > 0) {
         const response = await api.post('/api/payments/create', {
           courseId: Number(id),
-          paymentMethod: 'DEMO',
+          paymentMethod: 'KHALTI',
         })
 
-        const paymentId = response.data?.data?.id
+        const payment = response.data?.data
+        const paymentId = payment?.id
 
-        if (!paymentId) {
+        if (!paymentId || !payment?.checkoutUrl) {
           setEnrollmentMessage('Unable to start checkout for this course.')
           return
         }
 
-        navigate(`/payment/${paymentId}`)
+        window.location.assign(payment.checkoutUrl)
       } else {
         await api.post(`/api/courses/${id}/enroll`)
 

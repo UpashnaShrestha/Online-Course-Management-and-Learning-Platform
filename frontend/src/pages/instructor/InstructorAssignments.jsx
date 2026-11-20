@@ -6,7 +6,8 @@ export default function InstructorAssignments() {
   const [courses, setCourses] = useState([])
   const [assignments, setAssignments] = useState([])
   const [submissions, setSubmissions] = useState([])
-  const [selectedAssignment, setSelectedAssignment] = useState(null)
+  const [selectedCourseId, setSelectedCourseId] = useState(null)
+  const [visibleAssignments, setVisibleAssignments] = useState([])
   const [gradingSubmissionId, setGradingSubmissionId] = useState(null)
   const [grades, setGrades] = useState({})
   const [loading, setLoading] = useState(true)
@@ -41,13 +42,26 @@ export default function InstructorAssignments() {
     }
   }, [])
 
-  const loadSubmissions = async (assignmentId) => {
-    setSelectedAssignment(assignmentId)
+  const loadCourseSubmissions = async (course) => {
+    setSelectedCourseId(course.id)
+    setVisibleAssignments(assignments.filter((assignment) => assignment.courseId === course.id))
     setGradingSubmissionId(null)
     setSubmissions([])
     try {
-      const response = await api.get(`/api/instructor/assignments/${assignmentId}/submissions`)
-      setSubmissions(response.data?.data || [])
+      const courseAssignments = assignments.filter((assignment) => assignment.courseId === course.id)
+      setVisibleAssignments(courseAssignments)
+      const responses = await Promise.all(
+        courseAssignments.map((assignment) =>
+          api.get(`/api/instructor/assignments/${assignment.id}/submissions`)
+        ),
+      )
+      setSubmissions(
+        responses.flatMap((response, index) =>
+          (response.data?.data || [])
+            .filter((submission) => submission.status !== 'NOT_SUBMITTED')
+            .map((submission) => ({ ...submission, assignmentTitle: courseAssignments[index].title })),
+        ),
+      )
     } catch (requestError) {
       setError(requestError.response?.data?.message || 'Unable to load submissions.')
     }
@@ -139,10 +153,26 @@ export default function InstructorAssignments() {
 
   const statusLabel = (submission) => {
     if (submission.status === 'NOT_SUBMITTED') return 'Not submitted'
-    if (submission.status === 'GRADED') return 'Graded'
-    if (submission.status === 'LATE') return 'Submitted late - Not graded'
+    if (submission.status === 'GRADED') return submission.late ? 'Graded - submitted late' : 'Graded'
+    if (submission.status === 'LATE' || submission.late) return 'Late submission - submitted after the deadline'
     return 'Submitted - Not graded'
   }
+
+  const submissionsByStudent = Array.from(
+    submissions.reduce((groups, submission) => {
+      const key = submission.studentId
+      if (!groups.has(key)) {
+        groups.set(key, {
+          studentId: key,
+          studentName: submission.studentName || submission.studentUsername || 'Unknown student',
+          studentUsername: submission.studentUsername,
+          submissions: [],
+        })
+      }
+      groups.get(key).submissions.push(submission)
+      return groups
+    }, new Map()).values(),
+  )
 
   return (
     <DashboardLayout role="INSTRUCTOR" title="Assignments" subtitle="Review learner submissions and monitor class activity.">
@@ -150,74 +180,142 @@ export default function InstructorAssignments() {
       {loading && <p className="text-slate-600">Loading assignments...</p>}
       {!loading && (
       <div className="space-y-4">
-        {assignments.map((assignment) => (
-          <div key={assignment.id} className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-            <div className="flex items-center justify-between gap-3">
+        {courses.map((course) => (
+          <section key={course.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4">
               <div>
-                <h2 className="text-xl font-bold text-slate-900">{assignment.title}</h2>
-                <p className="mt-1 text-sm text-slate-500">Course #{assignment.courseId} Due {assignment.dueDate ? new Date(assignment.dueDate).toLocaleString() : 'No due date'}</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Course submissions</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-900">{course.title}</h2>
               </div>
-              <button type="button" onClick={() => loadSubmissions(assignment.id)} className="rounded-full bg-violet-700 px-4 py-2 text-sm font-semibold text-white">View submissions</button>
-            </div>
-            {selectedAssignment === assignment.id && <div className="mt-4 space-y-3">{submissions.map((submission) => {
-              const fileType = submission.fileType
-              const filePath = submission.filePath
-              const fileName = submission.fileName || (filePath ? filePath.split('/').pop() : '')
-              
-              return (
-                <div key={submission.id} className="rounded-xl bg-white p-4 ring-1 ring-slate-200">
-                  <div className="flex items-start gap-3">
-                    <div className={`w-10 h-10 rounded-md bg-${getFileColor(fileType)} flex items-center justify-center text-sm text-white`}>
-                      {getFileIcon(fileType)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{submission.studentName || submission.studentUsername || 'Unknown student'}</p>
-                      {submission.studentUsername && <p className="text-xs text-slate-400">@{submission.studentUsername}</p>}
-                      <p className="text-xs text-slate-500">{fileName || 'No filename'}</p>
-                    </div>
+              <button type="button" onClick={() => loadCourseSubmissions(course)} className="shrink-0 rounded-lg bg-violet-700 px-4 py-2 text-sm font-semibold text-white">
+                {selectedCourseId === course.id ? 'Refresh submissions' : 'View submissions'}
+              </button>
+            </header>
+            {selectedCourseId === course.id && (
+              <div className="border-t-0">
+                <div className="grid grid-cols-2 border-b border-slate-200 bg-white sm:grid-cols-4">
+                  <div className="border-b border-slate-200 px-5 py-3 sm:border-b-0 sm:border-r">
+                    <p className="text-xs text-slate-500">Assignments</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">{visibleAssignments.length}</p>
                   </div>
-                  <p className={`mt-2 text-sm font-semibold ${submission.status === 'GRADED' ? 'text-emerald-700' : 'text-amber-700'}`}>
-                    Status: {statusLabel(submission)}
-                    {submission.grade !== null && submission.grade !== undefined && ` • ${submission.grade}/${assignment.maxMarks ?? 100}`}
-                  </p>
-                  {submission.feedback && submission.status === 'GRADED' && (
-                    <p className="mt-1 text-sm text-slate-600">Feedback: {submission.feedback}</p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-3">
-                    {submission.submissionMethod === 'FILE' && submission.id && (
-                      <>
-                        <button type="button" onClick={() => openFile(submission)} className="text-violet-700 underline text-sm">Preview file</button>
-                        <button type="button" onClick={() => openFile(submission, true)} className="text-violet-700 underline text-sm">Download</button>
-                      </>
-                    )}
-                    {submission.submissionMethod === 'URL' && submission.filePath && (
-                      <a href={submission.filePath} target="_blank" rel="noreferrer" className="text-violet-700 underline text-sm">Open URL</a>
-                    )}
-                    {submission.submissionMethod === 'TEXT' && submission.textContent && (
-                      <details className="w-full text-sm"><summary className="cursor-pointer text-violet-700">Read response</summary><p className="mt-2 whitespace-pre-wrap text-slate-700">{submission.textContent}</p></details>
-                    )}
-                    {submission.status !== 'NOT_SUBMITTED' && <button
-                      type="button"
-                      onClick={() => openGrading(submission)}
-                      className="rounded-lg bg-violet-700 px-3 py-2 text-sm font-semibold text-white"
-                    >
-                      {submission.status === 'GRADED' ? 'Edit grade' : 'Grade student'}
-                    </button>}
+                  <div className="border-b border-slate-200 px-5 py-3 sm:border-b-0 sm:border-r">
+                    <p className="text-xs text-slate-500">Students</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">{submissionsByStudent.length}</p>
                   </div>
-                  {gradingSubmissionId === submission.id && (
-                    <div className="mt-3">
-                      <input type="number" min="0" max={assignment.maxMarks ?? 100} placeholder={`Grade (max ${assignment.maxMarks ?? 100})`} value={grades[submission.id]?.grade ?? submission.grade ?? ''} onChange={(event) => setGrades((current) => ({ ...current, [submission.id]: { ...current[submission.id], grade: event.target.value } }))} className="rounded-lg border px-3 py-2 w-full" />
-                      <input type="text" placeholder="Feedback" value={grades[submission.id]?.feedback ?? submission.feedback ?? ''} onChange={(event) => setGrades((current) => ({ ...current, [submission.id]: { ...current[submission.id], feedback: event.target.value } }))} className="rounded-lg border px-3 py-2 w-full my-2" />
-                      <div className="flex gap-2">
-                        <button type="button" onClick={() => gradeSubmission(submission.id)} className="rounded-lg bg-violet-700 px-3 py-2 text-sm font-semibold text-white">Save grade</button>
-                        <button type="button" onClick={() => setGradingSubmissionId(null)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Cancel</button>
-                      </div>
-                    </div>
-                  )}
+                  <div className="border-r border-slate-200 px-5 py-3">
+                    <p className="text-xs text-slate-500">Submissions</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">{submissions.length}</p>
+                  </div>
+                  <div className="px-5 py-3">
+                    <p className="text-xs text-slate-500">Graded</p>
+                    <p className="mt-1 text-lg font-bold text-emerald-700">{submissions.filter((submission) => submission.status === 'GRADED').length}</p>
+                  </div>
                 </div>
-              )
-            })}{submissions.length === 0 && <p className="text-sm text-slate-500">No submissions yet.</p>}</div>}
-          </div>
+                {submissionsByStudent.length > 0 ? (
+                  <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1100px] text-left text-sm text-slate-700">
+                    <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600">
+                      <tr>
+                        <th className="w-16 border-b px-4 py-3 text-center">S/N</th>
+                        <th className="w-64 border-b px-4 py-3">Student</th>
+                        <th className="border-b px-4 py-3">Assignment submissions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {submissionsByStudent.map((student, index) => (
+                        <tr key={student.studentId} className="border-t border-slate-200 align-top">
+                          <td className="border-r px-4 py-5 text-center font-bold text-slate-500">{index + 1}</td>
+                          <td className="border-r px-4 py-5">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-sm font-bold text-violet-700">
+                                {student.studentName.slice(0, 1).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-slate-900">{student.studentName}</p>
+                                {student.studentUsername && <p className="mt-0.5 text-xs text-slate-500">@{student.studentUsername}</p>}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-5">
+                            <div className="overflow-x-auto rounded-lg border border-slate-200">
+                              <table className="w-full min-w-[780px] text-xs">
+                                <thead className="bg-slate-50 text-slate-600">
+                                  <tr>
+                                    <th className="border-b px-3 py-2.5 text-left">Assignment</th>
+                                    <th className="border-b px-3 py-2.5 text-left">Submitted at</th>
+                                    <th className="border-b px-3 py-2.5 text-left">Status</th>
+                                    <th className="border-b px-3 py-2.5 text-left">Submission</th>
+                                    <th className="border-b px-3 py-2.5 text-left">Grade / Feedback</th>
+                                    <th className="border-b px-3 py-2.5 text-left">Action</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {student.submissions.map((submission) => {
+                                    const assignment = visibleAssignments.find((item) => item.id === submission.assignmentId)
+                                    const fileName = submission.fileName || (submission.filePath ? submission.filePath.split('/').pop() : '')
+                                    return (
+                                      <tr key={submission.id} className="border-b border-slate-100">
+                                        <td className="px-3 py-3 font-semibold text-slate-900">{submission.assignmentTitle}</td>
+                                        <td className="px-3 py-3 whitespace-nowrap text-slate-600">{submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : '—'}</td>
+                                        <td className="px-3 py-3">
+                                          <span className={`inline-block rounded-full px-2.5 py-1 font-semibold ${submission.status === 'GRADED' ? 'bg-emerald-100 text-emerald-700' : submission.status === 'LATE' || submission.late ? 'bg-amber-100 text-amber-700' : 'bg-sky-100 text-sky-700'}`}>
+                                            {statusLabel(submission)}
+                                          </span>
+                                        </td>
+                                        <td className="px-3 py-3">
+                                          {submission.submissionMethod === 'FILE' && (
+                                            <div className="flex gap-2">
+                                              <button type="button" onClick={() => openFile(submission)} className="text-violet-700 underline">Preview</button>
+                                              <button type="button" onClick={() => openFile(submission, true)} className="text-violet-700 underline">Download</button>
+                                            </div>
+                                          )}
+                                          {submission.submissionMethod === 'URL' && submission.filePath && (
+                                            <a href={submission.filePath} target="_blank" rel="noreferrer" className="text-violet-700 underline">Open URL</a>
+                                          )}
+                                          {submission.submissionMethod === 'TEXT' && submission.textContent && (
+                                            <details><summary className="cursor-pointer text-violet-700">Read response</summary><p className="mt-2 max-w-md whitespace-pre-wrap text-slate-700">{submission.textContent}</p></details>
+                                          )}
+                                          {submission.submissionMethod === 'FILE' && <p className="mt-1 text-slate-500">{fileName || 'No filename'}</p>}
+                                        </td>
+                                        <td className="min-w-44 px-3 py-3">
+                                          {submission.status === 'GRADED' && submission.grade != null && <p>{submission.grade}/{assignment?.maxMarks ?? 100}</p>}
+                                          {submission.feedback && <p className="mt-1 text-slate-600">{submission.feedback}</p>}
+                                          {!submission.grade && !submission.feedback && <span className="text-slate-400">Not graded</span>}
+                                        </td>
+                                        <td className="min-w-44 px-3 py-3">
+                                          {gradingSubmissionId === submission.id ? (
+                                            <div className="space-y-2">
+                                              <input type="number" min="0" max={assignment?.maxMarks ?? 100} placeholder="Grade" value={grades[submission.id]?.grade ?? submission.grade ?? ''} onChange={(event) => setGrades((current) => ({ ...current, [submission.id]: { ...current[submission.id], grade: event.target.value } }))} className="w-full rounded border px-2 py-1" />
+                                              <input type="text" placeholder="Feedback" value={grades[submission.id]?.feedback ?? submission.feedback ?? ''} onChange={(event) => setGrades((current) => ({ ...current, [submission.id]: { ...current[submission.id], feedback: event.target.value } }))} className="w-full rounded border px-2 py-1" />
+                                              <div className="flex gap-2">
+                                                <button type="button" onClick={() => gradeSubmission(submission.id)} className="rounded bg-violet-700 px-2 py-1 text-white">Save</button>
+                                                <button type="button" onClick={() => setGradingSubmissionId(null)} className="rounded border px-2 py-1">Cancel</button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <button type="button" onClick={() => openGrading(submission)} className="rounded bg-violet-700 px-3 py-2 text-white">
+                                              {submission.status === 'GRADED' ? 'Edit grade' : 'Grade'}
+                                            </button>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  </div>
+                ) : (
+                  <p className="p-5 text-sm text-slate-500">No submissions yet for this course.</p>
+                )}
+              </div>
+            )}
+          </section>
         ))}
         {!assignments.length && !error && <p className="text-sm text-slate-500">No assignments found across {courses.length} courses.</p>}
       </div>

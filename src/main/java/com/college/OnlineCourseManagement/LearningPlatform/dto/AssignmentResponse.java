@@ -19,6 +19,7 @@ public class AssignmentResponse {
     Set<SubmissionMethod> allowedSubmissionMethods;
     Set<String> allowedFileTypes;
     long maxFileSize;
+    boolean allowLateSubmissions;
     Long courseId;
     Long createdById;
     LocalDateTime createdAt;

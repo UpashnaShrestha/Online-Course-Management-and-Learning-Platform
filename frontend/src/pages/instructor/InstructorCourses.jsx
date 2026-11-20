@@ -23,6 +23,7 @@ const blankAssignment = {
   allowedSubmissionMethods: ['FILE', 'URL', 'TEXT'],
   allowedFileTypes: ['PDF', 'DOC', 'DOCX', 'JPG', 'PNG', 'WEBP'],
   maxFileSize: 5 * 1024 * 1024,
+  allowLateSubmissions: true,
 }
 
 export default function InstructorCourses() {
@@ -239,6 +240,7 @@ export default function InstructorCourses() {
         allowedSubmissionMethods: assignmentForm.allowedSubmissionMethods,
         allowedFileTypes: assignmentForm.allowedFileTypes,
         maxFileSize: Number(assignmentForm.maxFileSize),
+        allowLateSubmissions: assignmentForm.allowLateSubmissions,
       }
       const response = editing.assignment ? await api.put(`/api/instructor/assignments/${editing.assignment}`, payload) : await api.post(`/api/instructor/courses/${selectedCourse.id}/assignments`, payload)
       setAssignments((current) => editing.assignment ? current.map((item) => item.id === editing.assignment ? response.data.data : item) : [...current, response.data.data])
@@ -339,7 +341,7 @@ export default function InstructorCourses() {
                 setForm={setAssignmentForm}
                 editingId={editing.assignment}
                 onSubmit={saveAssignment}
-                onEdit={(assignment) => { setEditing((current) => ({ ...current, assignment: assignment.id })); setAssignmentForm({ title: assignment.title, description: assignment.description || '', dueDate: assignment.dueDate ? assignment.dueDate.slice(0, 16) : '' }) }}
+                onEdit={(assignment) => { setEditing((current) => ({ ...current, assignment: assignment.id })); setAssignmentForm({ title: assignment.title, description: assignment.description || '', dueDate: assignment.dueDate ? assignment.dueDate.slice(0, 16) : '', maxMarks: assignment.maxMarks ?? 100, allowedSubmissionMethods: assignment.allowedSubmissionMethods || ['FILE', 'URL', 'TEXT'], allowedFileTypes: assignment.allowedFileTypes || ['PDF', 'DOC', 'DOCX', 'JPG', 'PNG', 'WEBP'], maxFileSize: assignment.maxFileSize || 5 * 1024 * 1024, allowLateSubmissions: assignment.allowLateSubmissions !== false }) }}
                 onDelete={deleteAssignment}
               />
               </div>

@@ -27,4 +27,5 @@ public class SubmissionResponse {
     BigDecimal grade;
     String feedback;
     LocalDateTime gradedAt;
+    boolean late;
 }

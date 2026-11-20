@@ -69,6 +69,10 @@ public class Assignment {
     @Builder.Default
     private long maxFileSize = 5 * 1024 * 1024;
 
+    @Column(name = "allow_late_submissions", nullable = false, columnDefinition = "boolean default true")
+    @Builder.Default
+    private boolean allowLateSubmissions = true;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;

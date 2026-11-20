@@ -81,6 +81,10 @@ public class Submission {
     @Column(name = "graded_at")
     private LocalDateTime gradedAt;
 
+    @Column(name = "is_late", nullable = false, columnDefinition = "boolean default false")
+    @Builder.Default
+    private boolean late = false;
+
     @PrePersist
     protected void onCreate() {
         submittedAt = LocalDateTime.now();

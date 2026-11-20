@@ -44,4 +44,7 @@ public class AssignmentRequest {
 
     @DecimalMin(value = "1", message = "Maximum file size must be positive")
     private Long maxFileSize;
+
+    @Builder.Default
+    private boolean allowLateSubmissions = true;
 }

@@ -37,6 +37,7 @@ class CorsConfigTest {
         assertThat(env.getProperty("app.cors.allowed-origins"))
                 .as("CORS must cover 127.0.0.1 as well as localhost")
                 .contains("http://localhost:5173")
+                .contains("http://localhost:5174")
                 .contains("http://127.0.0.1:5173");
     }
 

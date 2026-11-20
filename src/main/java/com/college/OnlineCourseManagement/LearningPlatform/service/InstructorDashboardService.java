@@ -53,13 +53,11 @@ public class InstructorDashboardService {
                 .map(this::toCourseSummary)
                 .toList();
         long totalEnrollments = summaries.stream().mapToLong(InstructorCourseSummaryResponse::getEnrolledStudents).sum();
-        long totalProgressPoints = 0;
-        long progressCount = 0;
+        List<BigDecimal> progressValues = new java.util.ArrayList<>();
         long pendingSubmissions = 0;
         for (Course course : courses) {
             for (Enrollment enrollment : activeEnrollments(course)) {
-                totalProgressPoints += progress(course, enrollment.getStudent().getId()).intValue();
-                progressCount++;
+                progressValues.add(progress(course, enrollment.getStudent().getId()));
             }
             pendingSubmissions += pendingSubmissions(course);
         }
@@ -68,7 +66,7 @@ public class InstructorDashboardService {
                 .courses(summaries)
                 .totalCourses(courses.size())
                 .totalEnrollments(totalEnrollments)
-                .averageProgress(percentage(totalProgressPoints, progressCount))
+                .averageProgress(averageProgress(progressValues))
                 .pendingSubmissions(pendingSubmissions)
                 .build();
     }
@@ -127,9 +125,9 @@ public class InstructorDashboardService {
         List<Enrollment> enrollments = activeEnrollments(course);
         long completed = enrollments.stream().filter(e -> e.getStatus() == EnrollmentStatus.COMPLETED).count();
         int totalLessons = (int) lessonRepository.countByModuleCourseId(course.getId());
-        long progressTotal = enrollments.stream()
-                .mapToLong(e -> progress(course, e.getStudent().getId()).intValue())
-                .sum();
+        List<BigDecimal> progressValues = enrollments.stream()
+                .map(e -> progress(course, e.getStudent().getId()))
+                .toList();
         return InstructorCourseSummaryResponse.builder()
                 .id(course.getId())
                 .title(course.getTitle())
@@ -141,7 +139,7 @@ public class InstructorDashboardService {
                 .completedStudents(completed)
                 .totalLessons(totalLessons)
                 .totalAssignments(assignmentRepository.countByCourseId(course.getId()))
-                .averageProgress(percentage(progressTotal, enrollments.size()))
+                .averageProgress(averageProgress(progressValues))
                 .build();
     }
 
@@ -259,5 +257,14 @@ public class InstructorDashboardService {
 
     private BigDecimal percentage(long value, long total) {
         return total == 0 ? BigDecimal.ZERO : BigDecimal.valueOf(value * 100.0 / total).setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal averageProgress(List<BigDecimal> progressValues) {
+        if (progressValues.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return progressValues.stream()
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .divide(BigDecimal.valueOf(progressValues.size()), 2, RoundingMode.HALF_UP);
     }
 }

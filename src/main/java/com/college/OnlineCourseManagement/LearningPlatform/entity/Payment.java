@@ -39,6 +39,18 @@ public class Payment {
     @Column(name = "transaction_id", unique = true, length = 200)
     private String transactionId;
 
+    @Column(name = "purchase_order_id", unique = true, length = 200)
+    private String purchaseOrderId;
+
+    @Column(name = "khalti_pidx", unique = true, length = 200)
+    private String khaltiPidx;
+
+    @Column(name = "checkout_url", length = 500)
+    private String checkoutUrl;
+
+    @Column(name = "gateway_response", columnDefinition = "TEXT")
+    private String gatewayResponse;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "student_id", nullable = false)
     private User student;

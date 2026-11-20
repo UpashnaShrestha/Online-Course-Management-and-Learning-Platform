@@ -4,9 +4,9 @@ import { DashboardLayout } from '../../layouts/DashboardLayout'
 import api from '../../services/api'
 
 const submissionStatusLabel = (submission) => {
-  if (submission.status === 'GRADED') return 'Graded'
+  if (submission.status === 'GRADED') return submission.late ? 'Graded (submitted late)' : 'Graded'
   if (submission.status === 'NOT_SUBMITTED') return 'Not submitted'
-  if (submission.status === 'LATE') return 'Submitted late - awaiting grade'
+  if (submission.status === 'LATE' || submission.late) return 'Late submission - submitted after the deadline'
   return 'Submitted - awaiting grade'
 }
 
@@ -243,6 +243,12 @@ export default function StudentLearning() {
               <p className="mt-2 text-xs text-slate-500">
                 Maximum marks: {assignment.maxMarks ?? 100} · Allowed: {(assignment.allowedSubmissionMethods || ['FILE', 'URL', 'TEXT']).map(methodLabel).join(', ')}
               </p>
+              {assignment.dueDate && new Date(assignment.dueDate).getTime() < Date.now() && assignment.allowLateSubmissions === false && (
+                <p className="mt-2 text-sm font-semibold text-red-700">Late submissions are disabled for this assignment.</p>
+              )}
+              {assignment.dueDate && new Date(assignment.dueDate).getTime() < Date.now() && assignment.allowLateSubmissions !== false && (
+                <p className="mt-2 text-sm text-amber-700">The deadline has passed. You may submit, but this will be recorded as a late submission.</p>
+              )}
               {(() => {
                 const allowedMethods = assignment.allowedSubmissionMethods || ['FILE', 'URL', 'TEXT']
                 const input = submissionInputs[assignment.id] || { method: allowedMethods[0], file: null, url: '', text: '' }
@@ -272,13 +278,21 @@ export default function StudentLearning() {
                     {input.method === 'TEXT' && (
                       <textarea value={input.text} onChange={(event) => setSubmissionInputs((current) => ({ ...current, [assignment.id]: { ...input, text: event.target.value } }))} placeholder="Write your response" rows={4} className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" />
                     )}
-                    <button type="button" onClick={() => submitAssignment(assignment)} className="rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white">Submit attempt</button>
+                    <button
+                      type="button"
+                      onClick={() => submitAssignment(assignment)}
+                      disabled={assignment.dueDate && new Date(assignment.dueDate).getTime() < Date.now() && assignment.allowLateSubmissions === false}
+                      className="rounded-xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Submit attempt
+                    </button>
                   </div>
                 )
               })()}
               {submissions[assignment.id] && (
                 <p className={`mt-3 text-sm ${submissions[assignment.id].status === 'GRADED' ? 'text-emerald-700' : 'text-amber-700'}`}>
                   Status: {submissionStatusLabel(submissions[assignment.id])}.
+                  {submissions[assignment.id].submittedAt ? ` Submitted ${new Date(submissions[assignment.id].submittedAt).toLocaleString()}.` : ''}
                   {submissions[assignment.id].grade != null ? ` Grade: ${submissions[assignment.id].grade}/${assignment.maxMarks ?? 100}.` : ''}
                   {submissions[assignment.id].feedback && ` Feedback: ${submissions[assignment.id].feedback}`}
                 </p>

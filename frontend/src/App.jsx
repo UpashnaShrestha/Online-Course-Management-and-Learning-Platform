@@ -31,6 +31,7 @@ import AdminCategories from './pages/admin/AdminCategories'
 import ScrollToTopButton from './components/ScrollToTopButton'
 import AdminPayments from './pages/admin/AdminPayments'
 import InstructorPublicProfile from './pages/InstructorPublicProfile'
+import KhaltiReturnPage from './pages/KhaltiReturnPage'
 
 function ProtectedRoute({ children, allowedRoles, redirectTo = '/login' }) {
   const { session, isAuthenticated } = useAuth()
@@ -76,6 +77,8 @@ export default function App() {
         <Route path="/about" element={<AboutPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/payment/success/:paymentId" element={<ProtectedRoute allowedRoles={['STUDENT']}><PaymentSuccessPage /></ProtectedRoute>} />
+        <Route path="/payment/khalti/callback" element={<ProtectedRoute allowedRoles={['STUDENT']}><KhaltiReturnPage /></ProtectedRoute>} />
+        <Route path="/payment/khalti-return" element={<ProtectedRoute allowedRoles={['STUDENT']}><KhaltiReturnPage /></ProtectedRoute>} />
         <Route path="/payment/:paymentId" element={<ProtectedRoute allowedRoles={['STUDENT']}><PaymentPage /></ProtectedRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />

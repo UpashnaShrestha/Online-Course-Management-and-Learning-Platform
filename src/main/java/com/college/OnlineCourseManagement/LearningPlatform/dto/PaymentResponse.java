@@ -13,6 +13,9 @@ import java.time.LocalDateTime;
 public class PaymentResponse {
     Long id;
     String transactionId;
+    String purchaseOrderId;
+    String khaltiPidx;
+    String checkoutUrl;
     Long courseId;
     String courseTitle;
     BigDecimal amount;

@@ -52,6 +52,7 @@ public class AssignmentService {
                 .allowedSubmissionMethods(normalizeMethods(request.getAllowedSubmissionMethods()))
                 .allowedFileTypes(normalizeFileTypes(request.getAllowedFileTypes()))
                 .maxFileSize(normalizeMaxFileSize(request.getMaxFileSize()))
+                .allowLateSubmissions(request.isAllowLateSubmissions())
                 .course(course)
                 .createdBy(instructor)
                 .build();
@@ -70,6 +71,7 @@ public class AssignmentService {
         assignment.setAllowedSubmissionMethods(normalizeMethods(request.getAllowedSubmissionMethods()));
         assignment.setAllowedFileTypes(normalizeFileTypes(request.getAllowedFileTypes()));
         assignment.setMaxFileSize(normalizeMaxFileSize(request.getMaxFileSize()));
+        assignment.setAllowLateSubmissions(request.isAllowLateSubmissions());
         return toResponse(assignment);
     }
 
@@ -151,6 +153,7 @@ public class AssignmentService {
                         ? SUPPORTED_FILE_TYPES
                         : Set.copyOf(assignment.getAllowedFileTypes()))
                 .maxFileSize(assignment.getMaxFileSize() <= 0 ? DEFAULT_MAX_FILE_SIZE : assignment.getMaxFileSize())
+                .allowLateSubmissions(assignment.isAllowLateSubmissions())
                 .courseId(assignment.getCourse().getId())
                 .createdById(assignment.getCreatedBy().getId())
                 .createdAt(assignment.getCreatedAt())

@@ -37,7 +37,6 @@ class EmailServiceTest {
         ReflectionTestUtils.setField(service, "mailHost", "smtp.gmail.com");
         ReflectionTestUtils.setField(service, "mailEnabled", true);
         ReflectionTestUtils.setField(service, "frontendBaseUrl", "http://localhost:5173");
-        ReflectionTestUtils.setField(service, "devLogOtp", true);
     }
 
     private SimpleMailMessage capture() {

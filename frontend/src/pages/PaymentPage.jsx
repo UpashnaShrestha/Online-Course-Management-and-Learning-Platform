@@ -1,16 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import SiteNavbar from '../components/SiteNavbar'
 import SiteFooter from '../components/SiteFooter'
 import api from '../services/api'
 import { formatNpr, initialsOf, PAYMENT_METHODS } from '../utils/format'
-
-const PROCESS_STEPS = [
-  'Contacting payment gateway',
-  'Verifying the transaction',
-  'Confirming the payment',
-  'Creating your enrollment',
-]
 
 function Stepper({ stage }) {
   const stages = ['payment', 'processing', 'success']
@@ -66,11 +59,8 @@ export default function PaymentPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [method, setMethod] = useState('ESEWA')
+  const [method, setMethod] = useState('KHALTI')
   const [stage, setStage] = useState('payment')
-  const [visibleStep, setVisibleStep] = useState(0)
-  const tickerRef = useRef(null)
-  const holdTimerRef = useRef(null)
 
   const instructor = useMemo(() => {
     const first = course?.instructors?.[0]
@@ -126,53 +116,12 @@ export default function PaymentPage() {
 
   const handlePayNow = async () => {
     if (stage !== 'payment') return
-
-    setError('')
-    setStage('processing')
-    setVisibleStep(0)
-
-    tickerRef.current = setInterval(() => {
-      setVisibleStep((current) => Math.min(current + 1, PROCESS_STEPS.length - 1))
-    }, 550)
-
-    // Keep the simulated gateway on screen long enough for the student to read the steps.
-    const minimumProcessing = new Promise((resolve) => {
-      holdTimerRef.current = setTimeout(resolve, 2200)
-    })
-
-    try {
-      const [response] = await Promise.all([
-        api.post(`/api/payments/${paymentId}/process`, {
-          successful: true,
-          paymentMethod: method,
-        }),
-        minimumProcessing,
-      ])
-
-      const processedPayment = response.data?.data
-      setPayment(processedPayment)
-      setVisibleStep(PROCESS_STEPS.length - 1)
-      setStage('success')
-    } catch (requestError) {
-      clearTimeout(holdTimerRef.current)
-      setError(requestError.response?.data?.message || 'Unable to process payment.')
-      setStage('payment')
-    } finally {
-      clearInterval(tickerRef.current)
-      tickerRef.current = null
-      clearTimeout(holdTimerRef.current)
-      holdTimerRef.current = null
+    if (!payment?.checkoutUrl) {
+      setError('The Khalti checkout URL is unavailable.')
+      return
     }
+    window.location.assign(payment.checkoutUrl)
   }
-
-  // Clear the simulated gateway timers if the student navigates away mid-payment.
-  useEffect(
-    () => () => {
-      if (tickerRef.current) clearInterval(tickerRef.current)
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
-    },
-    [],
-  )
 
   if (loading) {
     return (
@@ -310,7 +259,7 @@ export default function PaymentPage() {
               </div>
 
               <p className="mt-5 text-xs leading-5 text-slate-500">
-                This is a simulated gateway. No real money moves and no card data is stored.
+                Secure hosted Khalti Sandbox checkout. No card data is collected by OCMS.
               </p>
             </section>
 
@@ -318,10 +267,10 @@ export default function PaymentPage() {
             <section className="rounded-3xl border border-white/10 bg-[#0b1628] p-7 shadow-2xl shadow-black/30">
               {stage === 'payment' && (
                 <>
-                  <h2 className="text-lg font-bold text-white">Choose a payment method</h2>
+                  <h2 className="text-lg font-bold text-white">Khalti Sandbox checkout</h2>
 
                   <div className="mt-5 space-y-3">
-                    {PAYMENT_METHODS.map((item) => {
+                    {[PAYMENT_METHODS.find((item) => item.value === 'KHALTI')].filter(Boolean).map((item) => {
                       const active = method === item.value
 
                       return (
@@ -353,34 +302,6 @@ export default function PaymentPage() {
                     })}
                   </div>
 
-                  {method === 'CARD' && (
-                    <div className="mt-5 space-y-3 rounded-2xl border border-white/10 bg-[#050b14] p-4">
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                        Demo card details
-                      </p>
-                      <input
-                        defaultValue="4111 1111 1111 1111"
-                        aria-label="Card number"
-                        readOnly
-                        className="w-full rounded-xl border border-white/10 bg-[#0b1628] px-4 py-3 font-mono text-sm text-slate-300"
-                      />
-                      <div className="grid grid-cols-2 gap-3">
-                        <input
-                          defaultValue="12/28"
-                          aria-label="Expiry date"
-                          readOnly
-                          className="w-full rounded-xl border border-white/10 bg-[#0b1628] px-4 py-3 font-mono text-sm text-slate-300"
-                        />
-                        <input
-                          defaultValue="123"
-                          aria-label="CVV"
-                          readOnly
-                          className="w-full rounded-xl border border-white/10 bg-[#0b1628] px-4 py-3 font-mono text-sm text-slate-300"
-                        />
-                      </div>
-                    </div>
-                  )}
-
                   {error && (
                     <p className="mt-5 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-200">
                       {error}
@@ -392,11 +313,11 @@ export default function PaymentPage() {
                     onClick={handlePayNow}
                     className="mt-6 w-full rounded-xl bg-[#f45135] px-5 py-4 text-sm font-bold text-white shadow-lg shadow-[#f45135]/20 transition hover:bg-[#ff694d]"
                   >
-                    Pay Now · {formatNpr(amount)}
+                    Continue to Khalti · {formatNpr(amount)}
                   </button>
 
                   <p className="mt-3 text-center text-xs text-slate-500">
-                    Paying with {selectedMethod?.label} · {formatNpr(amount)}
+                    Sandbox payment via {selectedMethod?.label} · {formatNpr(amount)}
                   </p>
 
                   <button
@@ -409,41 +330,6 @@ export default function PaymentPage() {
                 </>
               )}
 
-              {stage === 'processing' && (
-                <div className="flex min-h-[28rem] flex-col items-center justify-center text-center">
-                  <div className="h-14 w-14 animate-spin rounded-full border-4 border-white/10 border-t-[#f45135]" aria-hidden="true" />
-                  <h2 className="mt-6 text-xl font-extrabold text-white">Processing your payment</h2>
-                  <p className="mt-2 text-sm text-slate-400">
-                    Please keep this window open, this usually takes a few seconds.
-                  </p>
-
-                  <ul className="mt-8 w-full space-y-3 text-left">
-                    {PROCESS_STEPS.map((step, index) => {
-                      const done = index < visibleStep
-                      const active = index === visibleStep
-
-                      return (
-                        <li
-                          key={step}
-                          className={`flex items-center gap-3 rounded-2xl border p-4 text-sm transition ${
-                            active
-                              ? 'border-[#f45135] bg-[#f45135]/10 text-white'
-                              : done
-                                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
-                                : 'border-white/10 text-slate-500'
-                          }`}
-                        >
-                          <span aria-hidden="true" className="font-mono text-xs">
-                            {done ? '✓' : active ? '•' : '–'}
-                          </span>
-                          {step}
-                        </li>
-                      )
-                    })}
-                  </ul>
-                </div>
-              )}
-
               {stage === 'success' && (
                 <div className="flex min-h-[28rem] flex-col justify-center">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/15 text-3xl text-emerald-400">
@@ -451,7 +337,7 @@ export default function PaymentPage() {
                   </div>
                   <h2 className="mt-6 text-2xl font-extrabold text-white">Payment successful</h2>
                   <p className="mt-3 text-sm leading-6 text-slate-400">
-                    {formatNpr(amount)} was charged to your dummy account and you are now enrolled in{' '}
+                    {formatNpr(amount)} was verified by Khalti and you are now enrolled in{' '}
                     <span className="font-semibold text-white">
                       {payment?.courseTitle || course?.title}
                     </span>

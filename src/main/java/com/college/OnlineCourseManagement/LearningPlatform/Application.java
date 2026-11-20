@@ -3,7 +3,6 @@ package com.college.OnlineCourseManagement.LearningPlatform;
 import com.college.OnlineCourseManagement.LearningPlatform.config.DotEnv;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.core.env.StandardEnvironment;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication

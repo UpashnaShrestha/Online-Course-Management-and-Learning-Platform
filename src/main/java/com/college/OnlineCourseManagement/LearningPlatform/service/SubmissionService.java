@@ -57,8 +57,13 @@ public class SubmissionService {
             throw new ForbiddenException("You must be enrolled in the course to submit this assignment");
         }
 
-        if (assignment.getDueDate() != null && LocalDateTime.now().isAfter(assignment.getDueDate())) {
-            throw new ForbiddenException("The assignment deadline has passed");
+        LocalDateTime submittedAt = LocalDateTime.now();
+        boolean late = assignment.getDueDate() != null && submittedAt.isAfter(assignment.getDueDate());
+        if (late && !assignment.isAllowLateSubmissions()) {
+            throw new ForbiddenException(
+                    "Late submissions are disabled for this assignment. "
+                    + "The deadline passed at " + assignment.getDueDate() + "."
+            );
         }
 
         SubmissionMethod method = resolveMethod(request);
@@ -107,8 +112,9 @@ public class SubmissionService {
                 .submissionMethod(method)
                 .textContent(textContent)
                 .attemptNumber(attemptNumber)
-                .status(SubmissionStatus.SUBMITTED)
-                .submittedAt(LocalDateTime.now())
+                .status(late ? SubmissionStatus.LATE : SubmissionStatus.SUBMITTED)
+                .submittedAt(submittedAt)
+                .late(late)
                 .build();
 
         return toResponse(submissionRepository.save(submission));
@@ -254,6 +260,7 @@ public class SubmissionService {
                 .grade(submission.getGrade())
                 .feedback(submission.getFeedback())
                 .gradedAt(submission.getGradedAt())
+                .late(submission.isLate())
                 .build();
     }
 }

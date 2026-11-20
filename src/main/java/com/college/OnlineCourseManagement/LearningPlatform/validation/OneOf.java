@@ -1,7 +1,5 @@
 package com.college.OnlineCourseManagement.LearningPlatform.validation;
 
-import com.college.OnlineCourseManagement.LearningPlatform.enums.CourseDuration;
-import com.college.OnlineCourseManagement.LearningPlatform.enums.CourseLevel;
 import jakarta.validation.Constraint;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;

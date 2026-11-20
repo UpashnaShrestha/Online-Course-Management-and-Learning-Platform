@@ -16,30 +16,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Loads the project's {@code .env} file into the Spring environment.
- *
- * Spring Boot does not read {@code .env} on its own, and its own answer -- adding
- * {@code spring.config.import: "optional:file:.env[.properties]"} -- resolves the path against
- * the <em>process working directory</em>. A run configuration pointing anywhere other than the
- * project root therefore dropped every variable in the file silently. The most visible symptom
- * was password-reset email not being sent: the endpoint still replied "if an account exists, a
- * reset code has been sent", no mail arrived, and the only clue was a WARN in the startup log.
- *
- * So instead of relying on one relative path, several locations are tried in order:
- *
- * <ol>
- *   <li>the working directory and a few parents up -- what {@code mvn spring-boot:run} uses;</li>
- *   <li>the directory holding the packaged jar and its parent -- so {@code java -jar} works
- *       when launched from anywhere.</li>
- * </ol>
- *
- * The resolved path is logged at startup and exposed as {@code app.dotenv.location}, so the
- * answer to "is my .env being read?" is visible rather than inferred.
- *
- * The source is added <em>last</em>: real environment variables, {@code -D} flags and command
- * line arguments all still take precedence over the file.
- */
 public final class DotEnv {
 
     private static final Logger log = LoggerFactory.getLogger(DotEnv.class);

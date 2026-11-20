@@ -3,7 +3,6 @@ package com.college.OnlineCourseManagement.LearningPlatform.controller;
 import com.college.OnlineCourseManagement.LearningPlatform.dto.ApiResponse;
 import com.college.OnlineCourseManagement.LearningPlatform.dto.PaymentCreateRequest;
 import com.college.OnlineCourseManagement.LearningPlatform.dto.PaymentResponse;
-import com.college.OnlineCourseManagement.LearningPlatform.dto.PaymentProcessRequest;
 import com.college.OnlineCourseManagement.LearningPlatform.service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,15 +31,14 @@ public class PaymentController {
                 ));
     }
 
-    @PostMapping("/payments/{id}/process")
-    public ResponseEntity<ApiResponse<PaymentResponse>> processPayment(
-            @PathVariable Long id,
-            @Valid @RequestBody PaymentProcessRequest request
+    @GetMapping("/payments/khalti/verify")
+    public ResponseEntity<ApiResponse<PaymentResponse>> verifyKhalti(
+            @RequestParam("pidx") String pidx,
+            @RequestParam(value = "purchase_order_id", required = false) String purchaseOrderId,
+            @RequestParam(value = "status", required = false) String callbackStatus
     ) {
-        return ResponseEntity.ok(ApiResponse.success(
-                "Demo payment processed successfully",
-                paymentService.processPayment(id, request)
-        ));
+        PaymentResponse payment = paymentService.verifyByPidx(pidx, purchaseOrderId, callbackStatus);
+        return ResponseEntity.ok(ApiResponse.success("Khalti payment verified", payment));
     }
 
     @GetMapping("/student/payments")

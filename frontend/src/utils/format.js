@@ -44,15 +44,10 @@ export function formatNpr(amount) {
 }
 
 /**
- * Dummy payment methods offered on the simulated checkout page.
- * The values map 1:1 to the backend `PaymentMethod` enum.
+ * Supported payment methods shown in OCMS.
  */
 export const PAYMENT_METHODS = [
-  { value: 'ESEWA', label: 'eSewa', hint: 'Nepal\'s leading mobile wallet' },
   { value: 'KHALTI', label: 'Khalti', hint: 'Mobile wallet and card payments' },
-  { value: 'CARD', label: 'Credit / Debit Card', hint: 'Visa, Mastercard, UnionPay' },
-  { value: 'WALLET', label: 'Digital Wallet', hint: 'Generic wallet checkout' },
-  { value: 'DEMO', label: 'Demo Payment', hint: 'No real gateway is contacted' },
 ]
 
 /**
